@@ -676,12 +676,17 @@ io.on("connection", (socket) => {
                 kickVotes: {},
                 selectionTimeout: null,
                 drawHistory: [],
-                usedWords: [] // Prevents identical words from showing again inside this room
+                usedWords: [], // Prevents identical words from showing again inside this room
+                scoresMap: {} // Stores persistent scores keyed by normalized username
             };
         }
 
         // Add player to the room
-        const newPlayer = { id: socket.id, name: playerName, score: 0 };
+        // Ensure persistent score restoration
+        let normalizedName = playerName.trim().toLowerCase();
+        let startingScore = rooms[roomId].scoresMap[normalizedName] || 0;
+
+        const newPlayer = { id: socket.id, name: playerName, score: startingScore };
         rooms[roomId].players.push(newPlayer);
         socket.roomId = roomId; // Store the room ID on the socket for future events
         
@@ -799,16 +804,16 @@ io.on("connection", (socket) => {
             // 2. Prevent Drawer from getting 10x points in an 11 player lobby!
             // We strictly divide the reward by the total amount of guessers in the room,
             // capping the Drawer's maximum theoretical points to roughly match a 1st place guesser.
-            const totalGuessers = Math.max(1, room.players.length - 1);
-            const drawerPoints = Math.floor(pointsFromTime / totalGuessers);
-            
             player.score += pointsFromTime;
+            room.scoresMap[player.name.trim().toLowerCase()] = player.score; // Persist score
             room.roundPoints[socket.id] = (room.roundPoints[socket.id] || 0) + pointsFromTime;
             
-            // Reward Drawer for drawing well enough to be guessed
+            // Reward the drawer with 10 points per person that guesses correctly
+            const drawerPoints = 10;
             const drawer = room.players.find(p => p.id === room.currentDrawer);
             if(drawer) {
                 drawer.score += drawerPoints;
+                room.scoresMap[drawer.name.trim().toLowerCase()] = drawer.score; // Persist score
                 room.roundPoints[drawer.id] = (room.roundPoints[drawer.id] || 0) + drawerPoints;
             }
 

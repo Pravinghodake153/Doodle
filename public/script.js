@@ -689,7 +689,8 @@ window.kickPlayer = function(targetId) {
 
 socket.on("kicked", () => {
     alert("You were kicked from the room!");
-    window.location.reload();
+    localStorage.removeItem("skribblRoom"); // Clear saved room so it doesn't auto-rejoin
+    window.location.href = window.location.origin; // Redirect cleanly to root lobby
 });
 
 let currentDrawerId = null;

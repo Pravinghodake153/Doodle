@@ -384,5 +384,12 @@ io.on("connection", (socket) => {
     });
 });
 
-const PORT = 3000;
+// Load environment variables for local development
+try {
+    require("dotenv").config();
+} catch (e) {
+    // dotenv not installed, using system env or defaults
+}
+
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

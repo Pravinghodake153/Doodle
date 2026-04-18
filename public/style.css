@@ -647,11 +647,11 @@ canvas {
 
     .players-sidebar {
         order: 1;
-        width: 50% !important;
+        width: 50%;
         height: 45%;
         flex: none;
-        min-width: 0 !important;
-        max-width: none !important;
+        min-width: 0;
+        max-width: none;
         border-radius: 0;
         box-shadow: none;
         border: 1px solid var(--border-color);

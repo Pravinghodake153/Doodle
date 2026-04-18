@@ -524,6 +524,7 @@ function nextTurn(roomId) {
     room.word = ""; // Word is blank until drawer chooses
     room.guessedCorrectly = [];
     room.roundPoints = {}; // Track who earned what this specific round
+    room.guessPointsTracker = []; // Reset guesser history array for stable Drawer Cap calculation
     
     // Select the next player as the drawer (rotate through list)
     room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
@@ -797,24 +798,73 @@ io.on("connection", (socket) => {
             // Correct guess!
             room.guessedCorrectly.push(socket.id);
             
-            // Fair Scoring Formula:
-            // 1. Guessers earn points smoothly tied to the raw percentage of time remaining.
-            const pointsFromTime = Math.max(25, Math.floor((room.timer / 80) * 500));
+            // Fair Scoring Formula (Skribbl.io accurate model):
+            // 1. Base points awarded smoothly tied to the raw percentage of time remaining (50 -> 400)
+            const basePoints = Math.max(50, Math.floor((room.timer / 80) * 400));
             
-            // 2. Prevent Drawer from getting 10x points in an 11 player lobby!
-            // We strictly divide the reward by the total amount of guessers in the room,
-            // capping the Drawer's maximum theoretical points to roughly match a 1st place guesser.
-            player.score += pointsFromTime;
+            // 2. Placement Bonus for early quick guessers!
+            let orderBonus = 0;
+            if (room.guessedCorrectly.length === 1) orderBonus = 100;      // 1st place
+            else if (room.guessedCorrectly.length === 2) orderBonus = 50;  // 2nd place
+            else if (room.guessedCorrectly.length === 3) orderBonus = 25;  // 3rd place
+            
+            const pointsForGuesser = basePoints + orderBonus;
+            
+            // 3. Reward the Drawer dynamically based on lobby size (Smoothed Curve).
+            // This prevents massive drop-offs between lobby sizes and maintains balance.
+            let divisor = 1;
+            if (room.players.length >= 10) divisor = 3.5;
+            else if (room.players.length >= 8) divisor = 3;
+            else if (room.players.length >= 6) divisor = 2.5;
+            else if (room.players.length >= 5) divisor = 2.2;
+            else if (room.players.length === 4) divisor = 2;
+            else if (room.players.length === 3) divisor = 1.5;
+            else divisor = 1.1; // 1vs1
+            
+            let calculatedDrawerPoints = Math.floor(basePoints / divisor);
+            
+            // Track the points awarded to guessers dynamically for a stable average cap limit
+            room.guessPointsTracker = room.guessPointsTracker || [];
+            room.guessPointsTracker.push(pointsForGuesser);
+            
+            player.score += pointsForGuesser;
             room.scoresMap[player.name.trim().toLowerCase()] = player.score; // Persist score
-            room.roundPoints[socket.id] = (room.roundPoints[socket.id] || 0) + pointsFromTime;
+            room.roundPoints[socket.id] = (room.roundPoints[socket.id] || 0) + pointsForGuesser;
             
-            // Reward the drawer with 10 points per person that guesses correctly
-            const drawerPoints = 10;
+            // Apply a strictly weighted and scaling Cap system, preventing extreme domination or repetitive hard-caps
             const drawer = room.players.find(p => p.id === room.currentDrawer);
             if(drawer) {
-                drawer.score += drawerPoints;
-                room.scoresMap[drawer.name.trim().toLowerCase()] = drawer.score; // Persist score
-                room.roundPoints[drawer.id] = (room.roundPoints[drawer.id] || 0) + drawerPoints;
+                // Stabilize early round spikes by calculating the true top bracket. 
+                // We enforce a minimum sample size logically so the first fast drop doesn't inflate blindly.
+                let topGuessers = room.guessPointsTracker.slice(0, 3);
+                let effectiveTopGuessers = topGuessers;
+                
+                // Weight the Top 3 (Not Equal) to reward early clarity more!
+                let weightedAvg = 0;
+                if (effectiveTopGuessers.length >= 3) {
+                    const weights = [0.5, 0.3, 0.2];
+                    for (let i = 0; i < 3; i++) {
+                        weightedAvg += effectiveTopGuessers[i] * weights[i];
+                    }
+                } else {
+                    // Fallback accurately for < 3 guessers
+                    weightedAvg = effectiveTopGuessers.reduce((a, b) => a + b, 0) / effectiveTopGuessers.length;
+                }
+                
+                // Soft Cap Curve: scales multipliers cleanly linearly based on room density, firmly clamped at 1.8
+                let multiplier = Math.min(1.8, 1.3 + (room.players.length / 20)); // 10 pl -> 1.8x, 2 pl -> 1.4x
+                
+                let maxAllowedDrawerPoints = Math.floor(weightedAvg * multiplier);
+                let currentDrawerRoundPoints = room.roundPoints[drawer.id] || 0;
+                
+                // Only award points mathematically up until they precisely hit the cap
+                let actualDrawerAward = Math.max(0, Math.min(calculatedDrawerPoints, maxAllowedDrawerPoints - currentDrawerRoundPoints));
+                
+                if (actualDrawerAward > 0) {
+                    drawer.score += actualDrawerAward;
+                    room.scoresMap[drawer.name.trim().toLowerCase()] = drawer.score; // Persist score
+                    room.roundPoints[drawer.id] = currentDrawerRoundPoints + actualDrawerAward;
+                }
             }
 
             io.to(room.roomId).emit("updatePlayers", room.players);

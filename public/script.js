@@ -756,8 +756,14 @@ socket.on("drawerWord", (word) => {
 
 socket.on("wordHint", (hintString) => {
     if(!isDrawer) {
-        // Formats the spaced-out string: _ _ a _ _
-        wordDisplay.innerText = hintString;
+        // Splitting by 3 or more spaces ensures we precisely catch the gap between distinct words
+        let words = hintString.split(/\s{3,}/); 
+        
+        // Prevent characters within a specific word from wrapping independently by changing internal spaces to non-breaking
+        let formattedWords = words.map(w => w.replace(/ /g, "&nbsp;"));
+        
+        // Join the distinct words securely using standard breakable spaces so it wraps gracefully on mobile
+        wordDisplay.innerHTML = formattedWords.join(" &nbsp;&nbsp; ");
     }
 });
 

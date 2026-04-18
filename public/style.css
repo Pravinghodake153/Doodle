@@ -145,11 +145,26 @@ body, html {
   border: 2px solid var(--border-color);
 }
 
+#word-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#word-hint-length {
+  font-size: 14px;
+  font-weight: bold;
+  color: #888;
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+}
+
 #word-display {
   font-size: 32px;
   font-weight: bold;
   letter-spacing: 8px;
-  flex-grow: 1;
   text-align: center;
   color: var(--text-main);
   white-space: pre-wrap;

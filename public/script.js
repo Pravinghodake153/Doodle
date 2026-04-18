@@ -718,6 +718,9 @@ socket.on("turnStart", ({ drawerId, drawerName, timer }) => {
         toolbar.style.display = "none";
         wordDisplay.innerText = `${drawerName} is drawing...`;
     }
+    if (document.getElementById("word-hint-length")) {
+        document.getElementById("word-hint-length").innerText = ""; // Clear length text at round start
+    }
     
     // Broadcast drawer status to scoreboard immediately
     const playersListItems = playersList.querySelectorAll("li");
@@ -736,6 +739,12 @@ socket.on("wordOptions", (options) => {
             socket.emit("chooseWord", word);
             wordSelection.style.display = "none";
             wordDisplay.innerText = `You: ${word}`;
+            
+            let charCount = word.replace(/ /g, "").length;
+            let wordCount = word.split(" ").length;
+            if (document.getElementById("word-hint-length")) {
+                document.getElementById("word-hint-length").innerText = wordCount > 1 ? `${charCount} letters, ${wordCount} words` : `${charCount} letters`;
+            }
         });
         wordOptionsDiv.appendChild(btn);
     });
@@ -752,6 +761,12 @@ socket.on("drawerWord", (word) => {
     if(isDrawer) {
         wordSelection.style.display = "none";
         wordDisplay.innerText = `You are drawing: ${word}`;
+        
+        let charCount = word.replace(/ /g, "").length;
+        let wordCount = word.split(" ").length;
+        if (document.getElementById("word-hint-length")) {
+            document.getElementById("word-hint-length").innerText = wordCount > 1 ? `${charCount} letters, ${wordCount} words` : `${charCount} letters`;
+        }
     }
 });
 
@@ -765,6 +780,13 @@ socket.on("wordHint", (hintString) => {
         
         // Join the distinct words securely using standard breakable spaces so it wraps gracefully on mobile
         wordDisplay.innerHTML = formattedWords.join(" &nbsp;&nbsp; ");
+        
+        // Display exact letter and word counts above the word display organically 
+        let charCount = hintString.replace(/ /g, "").length;
+        let wordCount = words.length;
+        if (document.getElementById("word-hint-length")) {
+            document.getElementById("word-hint-length").innerText = wordCount > 1 ? `${charCount} letters, ${wordCount} words` : `${charCount} letters`;
+        }
     }
 });
 

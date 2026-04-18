@@ -373,13 +373,18 @@ canvas {
 
 #word-options {
   display: flex;
-  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 15px;
   margin-top: 30px;
+  width: 100%;
+  padding: 0 15px;
+  box-sizing: border-box;
 }
 
 #word-options button {
-  padding: 20px 40px;
-  font-size: 20px;
+  padding: 15px 20px;
+  font-size: 18px;
   font-weight: bold;
   background: #28a745;
   color: white;
@@ -388,6 +393,9 @@ canvas {
   cursor: pointer;
   transition: 0.2s;
   box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  flex: 1 1 calc(33.33% - 20px);
+  min-width: 120px;
+  max-width: 250px;
 }
 #word-options button:hover { background: #218838; transform: scale(1.05); }
 

@@ -201,6 +201,13 @@ if (inviteRoom) {
     roomInput.value = savedRoom;
 }
 
+// Auto-Join if both are populated
+if (nameInput.value.trim() && roomInput.value.trim()) {
+    setTimeout(() => {
+        joinBtn.click();
+    }, 100);
+}
+
 // Settings Modal
 const settingsModal = document.getElementById('settings-modal');
 document.getElementById('settings-btn').addEventListener('click', () => {
@@ -216,14 +223,19 @@ document.getElementById('copy-btn').addEventListener('click', () => {
     alert("Invite link copied!");
 });
 
+// Leave Room
+document.getElementById('leave-room-btn').addEventListener('click', () => {
+    localStorage.removeItem("skribblRoom");
+    // Also remove the URL parameter to prevent auto-joining back to the same room
+    window.location.href = window.location.origin;
+});
+
 // Mobile Menu Toggle
 const mobileMenuBtn = document.getElementById("mobile-menu-btn");
 const leftSidebar = document.getElementById("left-sidebar");
 if (mobileMenuBtn && leftSidebar) {
     mobileMenuBtn.addEventListener("click", () => {
-        leftSidebar.classList.toggle("mobile-hide");
-        // Update button text for feedback
-        mobileMenuBtn.textContent = leftSidebar.classList.contains("mobile-hide") ? "📊" : "☰";
+        leftSidebar.classList.toggle("hidden");
         resizeCanvas();
     });
 }
@@ -379,15 +391,15 @@ function drawLine(x0, y0, x1, y1, color, size, emit = false, eraserMode = false)
     // Aggressive Socket Emission rate (5ms throttle) for absolute raw drawing speed
     const now = Date.now();
     if (emit && isDrawer && (now - lastEmitTime > 5)) {
-        // We use absolute pixels because the canvas handles the scale() internally
+        // Send normalized coordinates to fix cross-device canvas resolution issues (Desktop vs Mobile)
         socket.emit("draw", {
-             x0: x0, 
-             y0: y0, 
-             x1: x1, 
-             y1: y1, 
-             color, 
-             size,
-             eraserMode
+             nx0: x0 / canvas.offsetWidth, 
+             ny0: y0 / canvas.offsetHeight, 
+             nx1: x1 / canvas.offsetWidth, 
+             ny1: y1 / canvas.offsetHeight, 
+             color: color, 
+             size: size,
+             eraserMode: eraserMode
         });
         lastEmitTime = now;
     }
@@ -504,7 +516,11 @@ function floodFill(startX, startY, fillColorHex, emit = false) {
     ctx.restore();
 
     if (emit && isDrawer) {
-        socket.emit("fill", { x: startX, y: startY, color: fillColorHex });
+        socket.emit("fill", { 
+            nx: startX / canvas.offsetWidth, 
+            ny: startY / canvas.offsetHeight, 
+            color: fillColorHex 
+        });
     }
 }
 
@@ -537,12 +553,12 @@ function draw(e) {
 function endDraw() {
     if (!isDrawing) return;
     isDrawing = false;
-    // Send one final unthrottled draw event so the last dot connects perfectly
+    // Send one final unthrottled draw event using normalized coords
     socket.emit("draw", {
-         x0: currentX, 
-         y0: currentY, 
-         x1: currentX, 
-         y1: currentY, 
+         nx0: currentX / canvas.offsetWidth, 
+         ny0: currentY / canvas.offsetHeight, 
+         nx1: currentX / canvas.offsetWidth, 
+         ny1: currentY / canvas.offsetHeight, 
          color: brushColor, 
          size: drawSize,
          eraserMode: isEraser
@@ -560,14 +576,53 @@ canvas.addEventListener("touchmove", (e) => { e.preventDefault(); draw(e); }, { 
 canvas.addEventListener("touchend", endDraw);
 canvas.addEventListener("touchcancel", endDraw);
 
-// Receive sync drawings using broadcast.emit
+// Receive sync drawings using normalized coordinates mapped back to actual size
 socket.on("draw", (data) => {
-    drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.size, false, data.eraserMode);
+    const rx0 = data.nx0 * canvas.offsetWidth;
+    const ry0 = data.ny0 * canvas.offsetHeight;
+    const rx1 = data.nx1 * canvas.offsetWidth;
+    const ry1 = data.ny1 * canvas.offsetHeight;
+    
+    drawLine(rx0, ry0, rx1, ry1, data.color, data.size, false, data.eraserMode);
 });
 
-// Receive sync fills
+// Receive sync fills using normalized coordinates
 socket.on("fill", (data) => {
-    floodFill(data.x, data.y, data.color, false);
+    const rx = data.nx * canvas.offsetWidth;
+    const ry = data.ny * canvas.offsetHeight;
+    floodFill(rx, ry, data.color, false);
+});
+
+// Sync history for late joining users safely using async queue
+socket.on("drawHistory", async (history) => {
+    for (const item of history) {
+        if (item.type === "draw") {
+            const data = item.data;
+            const rx0 = data.nx0 * canvas.offsetWidth;
+            const ry0 = data.ny0 * canvas.offsetHeight;
+            const rx1 = data.nx1 * canvas.offsetWidth;
+            const ry1 = data.ny1 * canvas.offsetHeight;
+            drawLine(rx0, ry0, rx1, ry1, data.color, data.size, false, data.eraserMode);
+        } else if (item.type === "fill") {
+            const data = item.data;
+            const rx = data.nx * canvas.offsetWidth;
+            const ry = data.ny * canvas.offsetHeight;
+            floodFill(rx, ry, data.color, false);
+        } else if (item.type === "syncCanvas") {
+            await new Promise((resolve) => {
+                const img = new Image();
+                img.src = item.data;
+                img.onload = () => {
+                    ctx.save();
+                    ctx.setTransform(1, 0, 0, 1, 0, 0);
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    ctx.restore();
+                    resolve();
+                };
+            });
+        }
+    }
 });
 
 // Clear canvas

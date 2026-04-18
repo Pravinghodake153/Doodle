@@ -462,10 +462,13 @@ canvas {
   background: var(--bg-card);
   border-top: 1px solid var(--border-color);
   gap: 8px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 #chat-input {
   flex: 1;
+  min-width: 0;
   padding: 12px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -611,24 +614,21 @@ canvas {
         letter-spacing: 2px;
     }
 
+    /* Hamburger toggle button in chat header */
     #mobile-menu-btn {
-        display: block !important;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 10000;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: var(--accent-color);
+        display: inline-block !important;
+        font-size: 14px;
+        background: transparent;
         color: white;
-        border: none;
-        font-size: 24px;
+        border: 1px solid white;
+        border-radius: 4px;
+        padding: 4px 8px;
         cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    }
+
+    /* Hide header invite button on mobile */
+    #header-invite-btn {
+        display: none !important;
     }
 
     /* Canvas on top row, sidebars wrap to second row side-by-side */
@@ -671,10 +671,10 @@ canvas {
     }
 
     /* When scoreboard is hidden, chat expands to 100% */
-    .players-sidebar.mobile-hide {
+    .players-sidebar.hidden {
         display: none !important;
     }
-    .players-sidebar.mobile-hide ~ .chat-sidebar {
+    .players-sidebar.hidden ~ .chat-sidebar {
         width: 100% !important;
     }
     

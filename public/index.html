@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doodle Guess - Real-Time Drawing Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Join Room UI -->
+  <div id="join-ui">
+    <div class="join-card">
+      <h1>🖍️ Doodle Guess</h1>
+      <p>Draw & Guess in Real-Time</p>
+      <input type="text" id="playerName" placeholder="Enter your name" />
+      <input type="text" id="roomId" placeholder="Enter room ID (e.g. room1)" />
+      <button id="joinBtn">Play!</button>
+    </div>
+  </div>
+
+  <!-- Main Game UI (Hidden initially) -->
+  <div id="game-ui" style="display: none;">
+     
+     <!-- Settings Modal -->
+     <div id="settings-modal" style="display: none;" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>⚙️ Room Settings</h2>
+            <p>Room ID: <strong id="modal-room-id"></strong></p>
+            <div class="invite-section">
+                <input type="text" id="invite-link" readonly>
+                <button id="copy-btn">📋 Copy</button>
+            </div>
+            <div class="theme-selection">
+                <h3>Select Theme</h3>
+                <div class="theme-btns">
+                    <button class="theme-btn" id="theme-white-btn">White</button>
+                    <button class="theme-btn" id="theme-dark-btn">Dark</button>
+                </div>
+            </div>
+        </div>
+     </div>
+     
+     <!-- Round Over Modal (Fireworks UI) -->
+     <div id="round-over-modal" style="display: none;" class="modal round-modal">
+        <div class="modal-content fireworks-bg">
+            <h1 id="round-word-display">The word was: <span></span></h1>
+            <div id="round-points-display" style="max-height: 200px; overflow-y: auto; text-align: left; padding: 10px; background: rgba(0,0,0,0.5); border-radius: 8px;"></div>
+            <button id="round-modal-close" class="round-close-btn">Close & Continue</button>
+        </div>
+     </div>
+     
+     <!-- Top Bar: Timer and Word Display -->
+     <div class="top-bar">
+         <div class="timer-container"><span id="timer">80</span>s</div>
+         <div id="word-display">Waiting for players...</div>
+         <div class="header-right">
+             <button id="mobile-menu-btn" class="icon-btn mobile-only">☰</button>
+             <button id="settings-btn" class="icon-btn">⚙️</button>
+         </div>
+     </div>
+
+     <div class="game-content">
+         
+         <!-- Left sidebar: Leaderboard -->
+         <div class="players-sidebar" id="left-sidebar">
+             <h3>Scoreboard</h3>
+             <ul id="players-list"></ul>
+         </div>
+
+         <!-- Resizer handle 1 -->
+         <div class="resizer" id="resizer-left"></div>
+
+         <!-- Center: Drawing Canvas -->
+         <div class="canvas-wrapper">
+             
+             <!-- Overlay for drawer to pick a word -->
+             <div id="word-selection" style="display: none;">
+                 <h3>Select a Word to Draw!</h3>
+                 <div id="word-options"></div>
+             </div>
+             
+             <!-- Drawing Toolbar -->
+             <div id="toolbar" style="display: none;">
+                <label class="tool-label">Brush Color: <input type="color" id="brush-color" value="#000000"></label>
+                <label class="tool-label">Fill Color: <input type="color" id="fill-color" value="#ff0000"></label>
+                <label class="tool-label">Stroke: <input type="range" id="size-picker" min="1" max="30" value="5"></label>
+                
+                <div class="tool-group">
+                    <button id="brush-btn" class="tool-btn active">Brush</button>
+                    <button id="fill-btn" class="tool-btn">Fill</button>
+                    <button id="eraser-btn" class="tool-btn">Eraser</button>
+                    <button id="undo-btn" class="tool-btn">Undo</button>
+                    <button id="redo-btn" class="tool-btn">Redo</button>
+                    <button id="clear-btn" class="tool-btn">Clear</button>
+                </div>
+             </div>
+             
+             <canvas id="drawing-board"></canvas>
+             <div id="brush-preview"></div>
+         </div>
+
+         <!-- Resizer handle 2 -->
+         <div class="resizer" id="resizer-right"></div>
+
+         <!-- Right sidebar: Chat System -->
+         <div class="chat-sidebar" id="right-sidebar">
+             <div class="chat-header">
+                 <span>Players: <span id="player-count">0</span></span>
+                 <button id="header-invite-btn" class="invite-btn">Invite 🔗</button>
+             </div>
+             <div id="chat-messages"></div>
+             <form id="chat-form">
+                 <input type="text" id="chat-input" placeholder="Type your guess here..." autocomplete="off">
+                 <button type="submit" id="chat-send-btn">➤</button>
+             </form>
+         </div>
+         
+     </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
